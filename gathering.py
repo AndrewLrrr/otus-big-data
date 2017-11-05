@@ -124,8 +124,9 @@ pep8 .
 import logging
 import sys
 
+from parsers.booking_hotel_parser import BookingHotelParser
 from scrappers.booking_scrapper import BookingScrapper
-from scrappers.proxy import Proxy
+from scrappers.proxy_scrapper import ProxyScrapper
 from storages.file_storage import FileStorage
 
 logging.basicConfig(level=logging.INFO)
@@ -134,22 +135,34 @@ logger = logging.getLogger(__name__)
 
 SCRAPPED_STORAGE = 'booking'
 TABLE_FORMAT_FILE = 'data.csv'
+LIMIT = 1000
 
 
 def gather_process(use_proxy):
     logger.info("gather")
     storage = FileStorage(SCRAPPED_STORAGE)
-
-    proxy = Proxy() if use_proxy else None
+    proxy = ProxyScrapper() if use_proxy else None
     scrapper = BookingScrapper(proxy, storage)
+
     if scrapper.scrap_process():
-        logging.error('Success booking.com hotels scrap')
+        logging.error('Success booking.com hotels scraping')
     else:
-        logging.error('Failed booking.com hotels scrap')
+        logging.error('Failed booking.com hotels scraping')
 
 
 def convert_data_to_table_format():
     logger.info("transform")
+    storage = FileStorage(SCRAPPED_STORAGE)
+    hotels = storage.all()
+    for hotel in hotels:
+        parser = BookingHotelParser(storage.get(hotel))
+        print(parser.title())
+        print(parser.stars())
+        print(parser.rating())
+        print(parser.reviews_count())
+        print(parser.the_year_of_the_beginning_on_the_booking())
+        print(parser.free_wifi())
+        print(len(parser.gallery_images()))
 
     # Your code here
     # transform gathered data from txt file to pandas DataFrame and save as csv

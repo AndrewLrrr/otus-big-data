@@ -1,18 +1,11 @@
-from bs4 import BeautifulSoup
+from parsers.parser import Parser
 
 
-class ProxyListParser:
-    def get_proxy_ips(self, data):
-        """
-        Parses html text and extracts field values
-        :param data: html text (page)
-        :return: a dictionary where key is one
-        of defined fields and value is this field's value
-        """
-        soup = BeautifulSoup(data, 'html.parser')
+class ProxyListParser(Parser):
+    def proxy_ips(self):
         ips = []
 
-        objects_list = soup.find('table', {'class': 'proxylist'})
+        objects_list = self._soup.find('table', {'class': 'proxylist'})
 
         for tr in objects_list.find('tbody').find_all('tr'):
             item = tr.find_all('td')[0]

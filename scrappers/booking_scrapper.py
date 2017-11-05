@@ -1,31 +1,27 @@
 import logging
 import re
-
 import requests
 import time
-from requests import RequestException
 
-from decorators.decorators import retry
 from parsers.booking_catalog_parser import BookingCatalogParser
+from scrappers.scrapper import Scrapper
 
 logger = logging.getLogger(__name__)
 
 
-class BookingScrapper:
+class BookingScrapper(Scrapper):
     _base_url = 'https://booking.com/searchresults.ru.html?'
     _hotels_per_page = 15
-    _headers = {
-        'User-Agent': 'Hello my name is AI bot and I need some hotels from you:)'
-    }
 
     def __init__(self, proxy=None, storage=None):
+        super().__init__()
         self._proxy = proxy
         self._storage = storage
         self._retries = 5
         self._links = []
-        self.timeout = 5
 
-    def scrap_process(self, limit=10):
+    def scrap_process(self, limit=30):
+        logging.info('Run scrap process with limit {}'.format(limit))
         # Try to get list of Moscow hotels
         params = {
             'aid': 376376,
@@ -43,20 +39,17 @@ class BookingScrapper:
                 logging.error('Proxy not found')
                 return False
 
-        parser = BookingCatalogParser()
-
         while limit > 0:
             try:
                 data = self._do_request(self._base_url, params, proxy)
-                links = parser.get_catalog_links(data)
-                if len(links) > limit:
-                    links = links[:limit]
-                    limit = 0
-                else:
-                    limit -= len(links)
+                parser = BookingCatalogParser(data)
                 params['offset'] += self._hotels_per_page
-                for link in links:
-                    self.scrap_hotel(link, proxy)
+                for link in parser.catalog_links():
+                    res = self.scrap_hotel(link, proxy)
+                    if res:
+                        limit -= 1
+                    if limit == 0:
+                        return True
                     time.sleep(0.5)
                 time.sleep(0.5)
             except requests.ConnectionError as e:
@@ -69,27 +62,17 @@ class BookingScrapper:
             except Exception as e:
                 logging.error(e)
                 return False
-        return True
 
     def scrap_hotel(self, url, proxy=None):
-        data = self._do_request(url, proxy=proxy)
         file_name = self.get_slug_from_url(url)
         if file_name:
-            self._storage.put(file_name, data.replace('\n', ''))
-
-    @retry(RequestException)
-    def _do_request(self, url, params=None, proxy=None):
-        response = requests.get(
-            url,
-            params=params,
-            headers=self._headers,
-            timeout=self.timeout,
-            proxies={'https': proxy}
-        )
-
-        response.raise_for_status()
-
-        return response.text
+            if self._storage.has(file_name):
+                logging.info('Skip hotel {}'.format(file_name))
+                return True
+            data = self._do_request(url, proxy=proxy)
+            logging.info('Scrape hotel {}'.format(file_name))
+            return self._storage.put(file_name, data.replace('\n', ''))
+        return False
 
     @staticmethod
     def get_slug_from_url(url):
