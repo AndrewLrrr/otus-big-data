@@ -122,27 +122,30 @@ pep8 .
 """
 
 import logging
-
 import sys
 
-from scrappers.scrapper import Scrapper
+from scrappers.booking_scrapper import BookingScrapper
+from scrappers.proxy import Proxy
 from storages.file_storage import FileStorage
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-SCRAPPED_FILE = 'scrapped_data.txt'
+SCRAPPED_STORAGE = 'booking'
 TABLE_FORMAT_FILE = 'data.csv'
 
 
-def gather_process():
+def gather_process(use_proxy):
     logger.info("gather")
-    storage = FileStorage(SCRAPPED_FILE)
+    storage = FileStorage(SCRAPPED_STORAGE)
 
-    # You can also pass a storage
-    scrapper = Scrapper()
-    scrapper.scrap_process(storage)
+    proxy = Proxy() if use_proxy else None
+    scrapper = BookingScrapper(proxy, storage)
+    if scrapper.scrap_process():
+        logging.error('Success booking.com hotels scrap')
+    else:
+        logging.error('Failed booking.com hotels scrap')
 
 
 def convert_data_to_table_format():
@@ -170,7 +173,11 @@ if __name__ == '__main__':
     logger.info("Work started")
 
     if sys.argv[1] == 'gather':
-        gather_process()
+        try:
+            use_proxy = (sys.argv[2] == 'proxy')
+        except IndexError:
+            use_proxy = False
+        gather_process(use_proxy)
 
     elif sys.argv[1] == 'transform':
         convert_data_to_table_format()

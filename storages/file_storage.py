@@ -1,40 +1,64 @@
 import os
+import errno
+import shutil
 
-from storages.storage import Storage
+from settings import STORAGE_PATH
 
 
-class FileStorage(Storage):
+class FileStorage:
+    def __init__(self, prefix=''):
+        if prefix and not prefix.startswith('/'):
+            prefix = '/' + prefix
+        self._directory_path = STORAGE_PATH + os.path.realpath(prefix)
 
-    def __init__(self, file_name):
-        self.file_name = file_name
+    def put(self, key, value):
+        try:
+            os.makedirs(self._directory_path)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+        file_path = os.path.join(self._directory_path, key)
+        if os.path.isfile(file_path):
+            return False
+        with open(file_path, encoding='utf-8', mode='w') as fn:
+            fn.write(value)
+        return True
 
-    def read_data(self):
-        if not os.path.exists(self.file_name):
-            raise StopIteration
+    def get(self, key):
+        file_path = os.path.join(self._directory_path, key)
+        if os.path.isfile(file_path):
+            with open(file_path, encoding='utf-8', mode='r') as fn:
+                res = fn.read()
+            return res
+        else:
+            return None
 
-        with open(self.file_name) as f:
-            for line in f:
-                yield line.strip()
+    def has(self, key):
+        file_path = os.path.join(self._directory_path, key)
+        return os.path.isfile(file_path)
 
-    def write_data(self, data_array):
-        """
-        :param data_array: collection of strings that
-        should be written as lines
-        """
-        with open(self.file_name, 'w') as f:
-            for line in data_array:
-                if line.endswith('\n'):
-                    f.write(line)
-                else:
-                    f.write(line + '\n')
+    def update(self, key, value):
+        file_path = os.path.join(self._directory_path, key)
+        if os.path.isfile(file_path):
+            with open(file_path, encoding='utf-8', mode='w') as fn:
+                fn.write(value)
+            return True
+        return False
 
-    def append_data(self, data):
-        """
-        :param data: string
-        """
-        with open(self.file_name, 'a') as f:
-            for line in data:
-                if line.endswith('\n'):
-                    f.write(line)
-                else:
-                    f.write(line + '\n')
+    def delete(self, key):
+        file_path = os.path.join(self._directory_path, key)
+        try:
+            os.remove(file_path)
+            return True
+        except OSError:
+            return False
+
+    def flush(self):
+        try:
+            shutil.rmtree(self._directory_path)
+            return True
+        except OSError:
+            return False
+
+    def all(self):
+        return os.listdir(self._directory_path)
