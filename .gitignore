@@ -4,5 +4,5 @@
 venv
 storage
 .ipynb_checkpoints
-data.csv
 .DS_Store
+*.tsv
