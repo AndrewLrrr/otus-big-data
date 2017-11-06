@@ -176,7 +176,7 @@ def convert_data_to_table_format():
             gallery_images_counts.append(len(parser.gallery_images()))
             addresses.append(parser.address())
             start_years.append(parser.the_year_of_the_beginning_on_the_booking())
-            good_districts.append(parser.district_summary() is not None)
+            good_districts.append(parser.geo_summary() is not None)
 
         df = pd.DataFrame({
             'name': titles,
@@ -196,10 +196,61 @@ def convert_data_to_table_format():
 def stats_of_data():
     logger.info("stats")
 
-    # Your code here
-    # Load pandas DataFrame and print to stdout different statistics about the data.
-    # Try to think about the data and use not only describe and info.
-    # Ask yourself what would you like to know about this data (most frequent word, or something else)
+    def get_district_from_address(addr):
+        items = addr.split(',')
+        if len(items) < 4:
+            return None
+        elif len(items) == 4 and not any(char.isdigit() for char in items[1]):
+            return items[1]
+        elif len(items) == 5 and not any(char.isdigit() for char in items[2]):
+            return items[2]
+        return None
+
+    df = pd.read_csv(TABLE_FORMAT_FILE)
+    print('~~ Исследование отелей Москвы ~~')
+    print()
+
+    print('Описание данных:')
+    print(df.info())
+    print()
+
+    print('Распределение отелей по году начала присутствия на booking.com:')
+    df2 = df.copy().dropna(subset=['start_year'])
+    print(df2.groupby(['start_year'])['start_year'].agg(['count']).sort_values('count', ascending=False))
+    print()
+
+    print('Привлекательные районы по мнению туристов:')
+    df3 = df.copy().dropna(subset=['address', 'good_district'])[['address', 'good_district']]
+    df3.address = df3.address.apply(get_district_from_address)
+    print(df3.dropna(subset=['address']).drop_duplicates().loc[df3.good_district == True].sort_values('address'))
+    print()
+
+    print('Непривлекательные районы по мнению туристов:')
+    print(df3.dropna(subset=['address']).drop_duplicates().loc[df3.good_district == False].sort_values('address'))
+    print()
+
+    print('Процент наличия бесплатного Wi-fi в отелях:')
+    print(
+        (100 / df.dropna(subset=['has_free_wifi'])['has_free_wifi'].count()) \
+        * df.dropna(subset=['has_free_wifi']).loc[df.has_free_wifi == True]['has_free_wifi'].count()
+    )
+    print()
+
+    print('Распределение по звездам:')
+    df['stars'].fillna(0, inplace=True)
+    print(df.groupby(['stars'])['stars'].agg(['count']).sort_values('count'))
+    print()
+
+    print('Средний рейтинг отеля в распределении по звездам:')
+    df4 = df.dropna(subset=['rating'])[['rating', 'stars']]
+    print(df4.groupby('stars')['rating'].mean())
+    print()
+
+    print('Распределение отелей по районам:')
+    print(df3.dropna(subset=['address'])
+          .groupby(['address', 'good_district'])['address']
+          .agg(['count'])
+          .sort_values('count', ascending=False))
 
 
 if __name__ == '__main__':

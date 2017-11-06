@@ -7,7 +7,7 @@ class BookingHotelParser(Parser):
     def title(self):
         item = self._soup.find('h2', {'id': 'hp_hotel_name'})
         if item:
-            return item.text
+            return item.text.replace('\n', '')
         return None
 
     def stars(self):
@@ -64,7 +64,7 @@ class BookingHotelParser(Parser):
     def address(self):
         item = self._soup.find('span', {'class': 'hp_address_subtitle'})
         if item:
-            return item.text
+            return item.text.replace('\n', '')
         return None
 
     def hotel_summary(self):
@@ -73,23 +73,23 @@ class BookingHotelParser(Parser):
             ps = item.find_all('p', {'class': None})
             if ps:
                 del ps[0]
-                return '\n'.join([p.text for p in ps])
+                return ' '.join([p.text for p in ps])
         return None
 
     def district_summary(self):
         ps = self._soup.find_all('p', {'class': 'hp_district_endorsements'})
         if ps:
-            return '\n'.join([p.text for p in ps])
+            return ' '.join([p.text for p in ps])
         return None
 
     def reviews_summary(self):
         ps = self._soup.find_all('p', {'class': 'hp-desc-review-highlight'})
         if ps:
-            return '\n'.join([p.text for p in ps])
+            return ' '.join([p.text for p in ps])
         return None
 
     def geo_summary(self):
         ps = self._soup.find_all('p', {'class': 'geo_information'})
         if ps:
-            return '\n'.join([p.text for p in ps])
+            return ' '.join([p.text for p in ps])
         return None
