@@ -28,11 +28,12 @@ class BookingScrapper(Scrapper):
             'offset': 0,
         }
 
-    def scrap_process(self, limit=30):
+    def scrap_process(self, limit=100):
         logging.info('Run scrap process with limit {}'.format(limit))
 
         proxy = None
         if self._proxy:
+            self.timeout = 5
             proxy = self._proxy.get_proxy()
             logging.info('Use proxy {}'.format(proxy))
             if proxy is None:
@@ -53,11 +54,12 @@ class BookingScrapper(Scrapper):
                     time.sleep(0.5)
                 self._params['offset'] += self._hotels_per_page
                 time.sleep(0.5)
-            except requests.ConnectionError as e:
+            except (requests.ConnectionError, requests.ReadTimeout) as e:
                 logging.error(e)
                 if self._proxy:
                     logging.info('Try to reconnect proxy {}'.format(proxy))
                     if self._retries == 0:
+                        logging.info('Ended attempts to proxy reconnect')
                         return False
                     self._proxy.forget_proxy(proxy)
                     self._retries -= 1

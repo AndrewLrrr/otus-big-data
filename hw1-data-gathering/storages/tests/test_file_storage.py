@@ -5,7 +5,7 @@ import unittest
 from storages import file_storage
 
 
-class TestCacher(unittest.TestCase):
+class TestFileStorage(unittest.TestCase):
     cache_prefix = 'test'
 
     def setUp(self):
@@ -65,10 +65,10 @@ class TestCacher(unittest.TestCase):
         self.c.put('f', 'test')
         self.c.put('f2', 'test2')
         self.c.put('f3', 'test3')
-        self.assertEqual(['f', 'f2', 'f3'], self.c.all())
+        self.assertEqual(['f', 'f2', 'f3'], self.c.keys())
         self.c.put('f4', 'test3')
-        self.assertEqual(['f', 'f2', 'f3', 'f4'], self.c.all())
+        self.assertEqual(['f', 'f2', 'f3', 'f4'], self.c.keys())
 
         c2 = file_storage.FileStorage(self.cache_prefix)
         self.c.delete('f2')
-        self.assertEqual(['f', 'f3', 'f4'], c2.all())
+        self.assertEqual(['f', 'f3', 'f4'], c2.keys())

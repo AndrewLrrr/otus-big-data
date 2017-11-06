@@ -136,7 +136,7 @@ logger = logging.getLogger(__name__)
 
 SCRAPPED_STORAGE = 'booking'
 TABLE_FORMAT_FILE = 'data.csv'
-LIMIT = 1000
+LIMIT = 1200
 
 
 def gather_process(use_proxy):
@@ -145,7 +145,7 @@ def gather_process(use_proxy):
     proxy = ProxyScrapper() if use_proxy else None
     scrapper = BookingScrapper(proxy, storage)
 
-    if scrapper.scrap_process():
+    if scrapper.scrap_process(limit=LIMIT):
         logging.error('Success booking.com hotels scraping')
     else:
         logging.error('Failed booking.com hotels scraping')
@@ -154,7 +154,7 @@ def gather_process(use_proxy):
 def convert_data_to_table_format():
     logger.info("transform")
     storage = FileStorage(SCRAPPED_STORAGE)
-    hotels = storage.all()
+    hotels = storage.keys()
     with open(TABLE_FORMAT_FILE, encoding='utf-8', mode='w') as csv_file:
         titles = []
         stars = []

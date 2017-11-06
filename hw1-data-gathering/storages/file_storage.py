@@ -60,5 +60,5 @@ class FileStorage:
         except OSError:
             return False
 
-    def all(self):
+    def keys(self):
         return os.listdir(self._directory_path)
