@@ -123,6 +123,7 @@ pep8 .
 
 import logging
 import sys
+import pandas as pd
 
 from parsers.booking_hotel_parser import BookingHotelParser
 from scrappers.booking_scrapper import BookingScrapper
@@ -154,19 +155,42 @@ def convert_data_to_table_format():
     logger.info("transform")
     storage = FileStorage(SCRAPPED_STORAGE)
     hotels = storage.all()
-    for hotel in hotels:
-        parser = BookingHotelParser(storage.get(hotel))
-        print(parser.title())
-        print(parser.stars())
-        print(parser.rating())
-        print(parser.reviews_count())
-        print(parser.the_year_of_the_beginning_on_the_booking())
-        print(parser.free_wifi())
-        print(len(parser.gallery_images()))
+    with open(TABLE_FORMAT_FILE, encoding='utf-8', mode='w') as csv_file:
+        titles = []
+        stars = []
+        ratings = []
+        reviews_counts = []
+        have_free_wifi = []
+        gallery_images_counts = []
+        addresses = []
+        start_years = []
+        good_districts = []
 
-    # Your code here
-    # transform gathered data from txt file to pandas DataFrame and save as csv
-    pass
+        for hotel in hotels:
+            parser = BookingHotelParser(storage.get(hotel))
+            titles.append(parser.title())
+            stars.append(parser.stars())
+            ratings.append(parser.rating())
+            reviews_counts.append(parser.reviews_count())
+            have_free_wifi.append(parser.has_free_wifi())
+            gallery_images_counts.append(len(parser.gallery_images()))
+            addresses.append(parser.address())
+            start_years.append(parser.the_year_of_the_beginning_on_the_booking())
+            good_districts.append(parser.district_summary() is not None)
+
+        df = pd.DataFrame({
+            'name': titles,
+            'stars': stars,
+            'rating': ratings,
+            'reviews_count': reviews_counts,
+            'has_free_wifi': have_free_wifi,
+            'gallery_images_count': gallery_images_counts,
+            'address': addresses,
+            'start_year': start_years,
+            'good_district': good_districts,
+        })
+
+        df.to_csv(csv_file, encoding='utf-8')
 
 
 def stats_of_data():

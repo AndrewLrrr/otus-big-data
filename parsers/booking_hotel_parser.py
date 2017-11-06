@@ -21,15 +21,19 @@ class BookingHotelParser(Parser):
         return None
 
     def rating(self):
-        item = self._soup.find('span', {'class': 'review-score-badge'})
+        item = self._soup.find('div', {'id': 'reviewFloater'})
         if item:
-            return float(item.text.replace(',', '.'))
+            rating = item.find('span', {'class': 'review-score-badge'})
+            if rating:
+                return float(rating.text.replace(',', '.'))
         return None
 
     def reviews_count(self):
-        item = self._soup.find('span', {'class': 'review-score-widget__subtext'})
+        item = self._soup.find('div', {'id': 'reviewFloater'})
         if item:
-            return int(re.sub('[^\d]+', '', item.text))
+            reviews_count = item.find('span', {'class': 'review-score-widget__subtext'})
+            if reviews_count:
+                return int(re.sub('[^\d]+', '', reviews_count.text))
         return None
 
     def the_year_of_the_beginning_on_the_booking(self):
@@ -40,7 +44,7 @@ class BookingHotelParser(Parser):
                 return int(search.group(1))
         return None
 
-    def free_wifi(self):
+    def has_free_wifi(self):
         item = self._soup.find('div', {
             'class': 'important_facility',
             'data-name-en': 'Free WiFi Internet Access Included'
@@ -56,3 +60,36 @@ class BookingHotelParser(Parser):
                 if image and image.find('/images/hotel/') != -1:
                     images.append(image)
         return images
+
+    def address(self):
+        item = self._soup.find('span', {'class': 'hp_address_subtitle'})
+        if item:
+            return item.text
+        return None
+
+    def hotel_summary(self):
+        item = self._soup.find('div', {'id': 'summary'})
+        if item:
+            ps = item.find_all('p', {'class': None})
+            if ps:
+                del ps[0]
+                return '\n'.join([p.text for p in ps])
+        return None
+
+    def district_summary(self):
+        ps = self._soup.find_all('p', {'class': 'hp_district_endorsements'})
+        if ps:
+            return '\n'.join([p.text for p in ps])
+        return None
+
+    def reviews_summary(self):
+        ps = self._soup.find_all('p', {'class': 'hp-desc-review-highlight'})
+        if ps:
+            return '\n'.join([p.text for p in ps])
+        return None
+
+    def geo_summary(self):
+        ps = self._soup.find_all('p', {'class': 'geo_information'})
+        if ps:
+            return '\n'.join([p.text for p in ps])
+        return None
