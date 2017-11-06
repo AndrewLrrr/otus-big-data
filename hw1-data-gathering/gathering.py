@@ -201,9 +201,9 @@ def stats_of_data():
         if len(items) < 4:
             return None
         elif len(items) == 4 and not any(char.isdigit() for char in items[1]):
-            return items[1]
+            return items[1].strip()
         elif len(items) == 5 and not any(char.isdigit() for char in items[2]):
-            return items[2]
+            return items[2].strip()
         return None
 
     df = pd.read_csv(TABLE_FORMAT_FILE)
@@ -226,7 +226,8 @@ def stats_of_data():
     print()
 
     print('Непривлекательные районы по мнению туристов:')
-    print(df3.dropna(subset=['address']).drop_duplicates().loc[df3.good_district == False].sort_values('address'))
+    good_districts = df3.dropna(subset=['address']).drop_duplicates().loc[df3.good_district == True]['address'].values
+    print(df3[~df3['address'].isin(good_districts)].dropna(subset=['address']).drop_duplicates().sort_values('address'))
     print()
 
     print('Процент наличия бесплатного Wi-fi в отелях:')
