@@ -248,7 +248,7 @@ def stats_of_data():
 
     print('Распределение отелей по районам:')
     print(df3.dropna(subset=['address'])
-          .groupby(['address', 'good_district'])['address']
+          .groupby(['address'])['address']
           .agg(['count'])
           .sort_values('count', ascending=False))
 
