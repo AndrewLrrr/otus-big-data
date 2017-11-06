@@ -1,4 +1,4 @@
-# # Otus BigData Developer Course.
+# Otus BigData Developer Course.
 
 ### Author
 Андрей Ларин
