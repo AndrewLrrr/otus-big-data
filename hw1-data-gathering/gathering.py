@@ -206,52 +206,55 @@ def stats_of_data():
             return items[2].strip()
         return None
 
-    df = pd.read_csv(TABLE_FORMAT_FILE)
-    print('~~ Исследование отелей Москвы ~~')
-    print()
+    try:
+        df = pd.read_csv(TABLE_FORMAT_FILE)
+        print('~~ Исследование отелей Москвы ~~')
+        print()
 
-    print('Описание данных:')
-    print(df.info())
-    print()
+        print('Описание данных:')
+        print(df.info())
+        print()
 
-    print('Распределение отелей по году начала присутствия на booking.com:')
-    df2 = df.copy().dropna(subset=['start_year'])
-    print(df2.groupby(['start_year'])['start_year'].agg(['count']).sort_values('count', ascending=False))
-    print()
+        print('Распределение отелей по году начала присутствия на booking.com:')
+        df2 = df.copy().dropna(subset=['start_year'])
+        print(df2.groupby(['start_year'])['start_year'].agg(['count']).sort_values('count', ascending=False))
+        print()
 
-    print('Привлекательные районы по мнению туристов:')
-    df3 = df.copy().dropna(subset=['address', 'good_district'])[['address', 'good_district']]
-    df3.address = df3.address.apply(get_district_from_address)
-    print(df3.dropna(subset=['address']).drop_duplicates().loc[df3.good_district == True].sort_values('address'))
-    print()
+        print('Привлекательные районы по мнению туристов:')
+        df3 = df.copy().dropna(subset=['address', 'good_district'])[['address', 'good_district']]
+        df3.address = df3.address.apply(get_district_from_address)
+        print(df3.dropna(subset=['address']).drop_duplicates().loc[df3.good_district == True].sort_values('address'))
+        print()
 
-    print('Непривлекательные районы по мнению туристов:')
-    good_districts = df3.dropna(subset=['address']).drop_duplicates().loc[df3.good_district == True]['address'].values
-    print(df3[~df3['address'].isin(good_districts)].dropna(subset=['address']).drop_duplicates().sort_values('address'))
-    print()
+        print('Непривлекательные районы по мнению туристов:')
+        good_districts = df3.dropna(subset=['address']).drop_duplicates().loc[df3.good_district == True]['address'].values
+        print(df3[~df3['address'].isin(good_districts)].dropna(subset=['address']).drop_duplicates().sort_values('address'))
+        print()
 
-    print('Процент наличия бесплатного Wi-fi в отелях:')
-    print(
-        (100 / df.dropna(subset=['has_free_wifi'])['has_free_wifi'].count()) \
-        * df.dropna(subset=['has_free_wifi']).loc[df.has_free_wifi == True]['has_free_wifi'].count()
-    )
-    print()
+        print('Процент наличия бесплатного Wi-fi в отелях:')
+        print(
+            (100 / df.dropna(subset=['has_free_wifi'])['has_free_wifi'].count()) \
+            * df.dropna(subset=['has_free_wifi']).loc[df.has_free_wifi == True]['has_free_wifi'].count()
+        )
+        print()
 
-    print('Распределение по звездам:')
-    df['stars'].fillna(0, inplace=True)
-    print(df.groupby(['stars'])['stars'].agg(['count']).sort_values('count'))
-    print()
+        print('Распределение по звездам:')
+        df['stars'].fillna(0, inplace=True)
+        print(df.groupby(['stars'])['stars'].agg(['count']).sort_values('count'))
+        print()
 
-    print('Средний рейтинг отеля в распределении по звездам:')
-    df4 = df.dropna(subset=['rating'])[['rating', 'stars']]
-    print(df4.groupby('stars')['rating'].mean())
-    print()
+        print('Средний рейтинг отеля в распределении по звездам:')
+        df4 = df.dropna(subset=['rating'])[['rating', 'stars']]
+        print(df4.groupby('stars')['rating'].mean())
+        print()
 
-    print('Распределение отелей по районам:')
-    print(df3.dropna(subset=['address'])
-          .groupby(['address'])['address']
-          .agg(['count'])
-          .sort_values('count', ascending=False))
+        print('Распределение отелей по районам:')
+        print(df3.dropna(subset=['address'])
+              .groupby(['address'])['address']
+              .agg(['count'])
+              .sort_values('count', ascending=False))
+    except FileNotFoundError as e:
+        logger.error(e)
 
 
 if __name__ == '__main__':
