@@ -60,7 +60,7 @@ class TestFileStorage(unittest.TestCase):
         self.c.flush()
         self.assertFalse(os.path.isdir(self.test_dir))
 
-    def test_all(self):
+    def test_keys(self):
         self.c._directory_path = self.test_dir
         self.c.put('f', 'test')
         self.c.put('f2', 'test2')
