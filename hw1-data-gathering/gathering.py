@@ -156,39 +156,41 @@ def convert_data_to_table_format():
     storage = FileStorage(SCRAPPED_STORAGE)
     hotels = storage.keys()
     with open(TABLE_FORMAT_FILE, encoding='utf-8', mode='w') as csv_file:
-        titles = []
-        stars = []
-        ratings = []
-        reviews_counts = []
-        have_free_wifi = []
-        gallery_images_counts = []
-        addresses = []
-        start_years = []
-        good_districts = []
+        df = pd.DataFrame(columns=[
+            'name',
+            'stars',
+            'rating',
+            'reviews_count',
+            'has_free_wifi',
+            'gallery_images_count',
+            'address',
+            'start_year',
+            'good_district',
+        ])
 
         for hotel in hotels:
             parser = BookingHotelParser(storage.get(hotel))
-            titles.append(parser.title())
-            stars.append(parser.stars())
-            ratings.append(parser.rating())
-            reviews_counts.append(parser.reviews_count())
-            have_free_wifi.append(parser.has_free_wifi())
-            gallery_images_counts.append(len(parser.gallery_images()))
-            addresses.append(parser.address())
-            start_years.append(parser.the_year_of_the_beginning_on_the_booking())
-            good_districts.append(parser.geo_summary() is not None)
-
-        df = pd.DataFrame({
-            'name': titles,
-            'stars': stars,
-            'rating': ratings,
-            'reviews_count': reviews_counts,
-            'has_free_wifi': have_free_wifi,
-            'gallery_images_count': gallery_images_counts,
-            'address': addresses,
-            'start_year': start_years,
-            'good_district': good_districts,
-        })
+            df = df.append(pd.DataFrame([[
+                parser.title(),
+                parser.stars(),
+                parser.rating(),
+                parser.reviews_count(),
+                parser.has_free_wifi(),
+                len(parser.gallery_images()),
+                parser.address(),
+                parser.the_year_of_the_beginning_on_the_booking(),
+                parser.geo_summary() is not None,
+            ]], columns=[
+                'name',
+                'stars',
+                'rating',
+                'reviews_count',
+                'has_free_wifi',
+                'gallery_images_count',
+                'address',
+                'start_year',
+                'good_district',
+            ]), ignore_index=True)
 
         df.to_csv(csv_file, encoding='utf-8')
 
@@ -223,12 +225,18 @@ def stats_of_data():
         print('Привлекательные районы по мнению туристов:')
         df3 = df.copy().dropna(subset=['address', 'good_district'])[['address', 'good_district']]
         df3.address = df3.address.apply(get_district_from_address)
-        print(df3.dropna(subset=['address']).drop_duplicates().loc[df3.good_district == True].sort_values('address'))
+        print(df3[df3.good_district == True].dropna(subset=['address']).drop_duplicates() \
+              .sort_values('address') \
+              .reset_index()[['address', 'good_district']])
         print()
 
         print('Непривлекательные районы по мнению туристов:')
-        good_districts = df3.dropna(subset=['address']).drop_duplicates().loc[df3.good_district == True]['address'].values
-        print(df3[~df3['address'].isin(good_districts)].dropna(subset=['address']).drop_duplicates().sort_values('address'))
+        good_districts = df3[df3.good_district == True].dropna(subset=['address']).drop_duplicates()['address'].values
+        print(df3[~df3['address'].isin(good_districts)] \
+              .dropna(subset=['address']) \
+              .drop_duplicates() \
+              .sort_values('address') \
+              .reset_index()[['address', 'good_district']])
         print()
 
         print('Процент наличия бесплатного Wi-fi в отелях:')
