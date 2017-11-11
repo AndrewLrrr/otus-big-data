@@ -1,6 +1,6 @@
 import requests
 
-from parsers.proxy_list_parser import ProxyListParser
+from parsers.proxy_catalog_parser import ProxyCatalogParser
 from scrappers.scrapper import Scrapper
 
 
@@ -13,7 +13,7 @@ class ProxyScrapper(Scrapper):
 
     def get_proxy(self):
         data = self._do_request(self._base_url)
-        parser = ProxyListParser(data)
+        parser = ProxyCatalogParser(data)
         for ip in parser.proxy_ips():
             url = 'http://{}'.format(ip)
             if url in self._except:

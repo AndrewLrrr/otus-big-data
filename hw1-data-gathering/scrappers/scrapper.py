@@ -12,13 +12,15 @@ class Scrapper:
         self.timeout = 3
 
     @retry(requests.RequestException)
-    def _do_request(self, url, params=None, proxy=None):
+    def _do_request(self, url, params=None, proxy=None, secure=True):
+        protocol = 'https' if secure else 'http'
+
         response = requests.get(
             url,
             params=params,
             headers=self._headers,
             timeout=self.timeout,
-            proxies={'https': proxy}
+            proxies={protocol: proxy}
         )
 
         response.raise_for_status()

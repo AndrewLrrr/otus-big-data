@@ -1,7 +1,7 @@
 from parsers.parser import Parser
 
 
-class ProxyListParser(Parser):
+class ProxyCatalogParser(Parser):
     def proxy_ips(self):
         ips = []
 

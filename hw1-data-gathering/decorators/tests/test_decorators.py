@@ -18,3 +18,7 @@ class TestRetryDecorator(unittest.TestCase):
         _counter = test()
 
         self.assertEqual(3, _counter)
+
+
+if __name__ == '__main__':
+    unittest.main()

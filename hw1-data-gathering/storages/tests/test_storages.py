@@ -72,3 +72,7 @@ class TestFileStorage(unittest.TestCase):
         c2 = file_storage.FileStorage(self.cache_prefix)
         self.c.delete('f2')
         self.assertEqual(['f', 'f3', 'f4'], c2.keys())
+
+
+if __name__ == '__main__':
+    unittest.main()
