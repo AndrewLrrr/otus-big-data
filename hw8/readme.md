@@ -1,1 +1,1 @@
-Homework notebook is [here](https://github.com/AndrewLrrr/otus-big-data/blob/master/hw5/Titanic.ipynb)
+Homework notebooks is [here](https://github.com/AndrewLrrr/otus-big-data/blob/master/hw5/Titanic.ipynb) and [here](https://github.com/AndrewLrrr/otus-big-data/blob/master/hw5/predictions_analysis.ipynb)
