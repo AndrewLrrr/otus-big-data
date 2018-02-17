@@ -134,8 +134,6 @@ STOP_WORDS = {
     'now',
 }
 
-SENTENCE_SENTINELS = ('.', '!', '?',)
-
 # Удалим все знаки препинания, оставим только символы ', -, ., ?, !
 delete_punctuation = re.compile(r'[^a-zA-Z0-9\-\s\'.?!]\s*')
 # Удалим все отдельно стоящие цифры
@@ -143,20 +141,24 @@ delete_numbers = re.compile(r'\b[\d]+\b')
 # Удалим все односимвольные объекты
 delete_single = re.compile(r'(?:^|\s)[\w\'\-](?:\s|$)(?:[\w\'\-](?:\s|$))*')
 # Уберем все лишнее с конца и начала строки
-delete_tails = re.compile(r'(?:\b[\'\-]+\B|\B[\'\-]+\b)')
+delete_tails = re.compile(r'(?:\b|^)[\'\-]+\B|\B[\'\-]+(?:\b|$)')
+# Уберем все отступы которые могли образоваться перед .?!
+delete_extra_spaces = re.compile(r'\s+([.?!])+')
+# Если слово является концом предложения
+sentence_sentinel = re.compile(r'[\-\']*[.?!]+[\-\']*$')
 # Уберем все лишние знаки препинания с конца строки
-delete_sentence_sentinels = re.compile(r'[.?!]+$')
+delete_sentence_sentinels = re.compile(r'[\-\']*[.?!]+[\-\']*')
 
 
 def build_sentence(buffer, sentence, line=None):
     if line:
-        buffer.extend(line.split())
+        buffer.extend(line.lower().split())
     for o, word in enumerate(buffer):
-        if word.endswith(SENTENCE_SENTINELS):
+        if sentence_sentinel.search(word):
             word = delete_sentence_sentinels.sub('', word)
-            sentence.append(word.lower())
+            sentence.append(word)
             return buffer[o+1:], sentence
-        sentence.append(word.lower())
+        sentence.append(word)
     return [], sentence
 
 
@@ -177,11 +179,13 @@ def main():
     buffer = []
     sentence = []
     for line in sys.stdin:
+        line = line.strip('\n')
         if line:
             line = delete_punctuation.sub(' ', line)
             line = delete_numbers.sub(' ', line)
             line = delete_single.sub(' ', line)
             line = delete_tails.sub('', line)
+            line = delete_extra_spaces.sub('\1', line)
             buffer, sentence = build_sentence(buffer, sentence, line)
             if buffer:
                 sentence_to_pairs(sentence)
