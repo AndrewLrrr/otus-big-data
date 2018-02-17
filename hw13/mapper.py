@@ -4,8 +4,6 @@ import re
 import sys
 
 # Список стоп-слов прямо из NLTK
-from collections import defaultdict
-
 STOP_WORDS = {
     'i',
     'me',
@@ -136,6 +134,8 @@ STOP_WORDS = {
     'now',
 }
 
+SENTENCE_SENTINELS = ('.', '!', '?',)
+
 # Удалим все знаки препинания, оставим только символы ', -, ., ?, !
 delete_punctuation = re.compile(r'[^a-zA-Z0-9\-\s\'.?!]\s*')
 # Удалим все отдельно стоящие цифры
@@ -148,11 +148,11 @@ delete_tails = re.compile(r'(?:\b[\'\-]+\B|\B[\'\-]+\b)')
 delete_sentence_sentinels = re.compile(r'[.?!]+$')
 
 
-def build_sentence(line, buffer, sentence):
-    sentence_sentinels = ('.', '!', '?',)
-    buffer.extend(line.split())
+def build_sentence(buffer, sentence, line=None):
+    if line:
+        buffer.extend(line.split())
     for o, word in enumerate(buffer):
-        if word.endswith(sentence_sentinels):
+        if word.endswith(SENTENCE_SENTINELS):
             word = delete_sentence_sentinels.sub('', word)
             sentence.append(word.lower())
             return buffer[o+1:], sentence
@@ -161,16 +161,16 @@ def build_sentence(line, buffer, sentence):
 
 
 def sentence_to_pairs(sentence):
-    pairs_cache = defaultdict(int)
+    cache = set()
     for o, i in enumerate(sentence):
         for j in sentence[o+1:]:
             if i == j or {i, j} & STOP_WORDS:
                 continue
             pair = (j, i) if i > j else (i, j)
-            pairs_cache[pair] += 1
-
-    for pair, cnt in pairs_cache.items():
-        print('{}|{}\t{}'.format(pair[0], pair[1], cnt))
+            if pair in cache:
+                continue
+            cache.add(pair)
+            print('{}|{}\t1'.format(pair[0], pair[1]))
 
 
 def main():
@@ -182,10 +182,11 @@ def main():
             line = delete_numbers.sub(' ', line)
             line = delete_single.sub(' ', line)
             line = delete_tails.sub('', line)
-            buffer, sentence = build_sentence(line, buffer, sentence)
+            buffer, sentence = build_sentence(buffer, sentence, line)
             if buffer:
                 sentence_to_pairs(sentence)
                 sentence = []
+    _, sentence = build_sentence(buffer, sentence)
     sentence_to_pairs(sentence)
 
 
