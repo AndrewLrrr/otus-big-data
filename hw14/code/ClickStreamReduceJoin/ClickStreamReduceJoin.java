@@ -62,24 +62,37 @@ public class ClickStreamReduceJoin extends Configured implements Tool {
         }
     }
 
+    // Сейчас данные на редьюсер приходят отсортированные по ключу, но в случайном порядке:
+    // key1 file_prev
+    // key1 file_curr
+    // key2 file_curr
+    // key2 file_prev
+    // В идеале, надо осуществлять промежуточную сортировку, чтобы второй файл всегда шел за первым:
+    // key1 file_prev
+    // key1 file_curr
+    // key2 file_prev
+    // key2 file_curr
+    // Тогда можно было бы обойтись без промежуточного буфера, но так как данных на редьюсер приходит немного,
+    // то можно ограничиться и текущим вариантом
     public static class ClickStreamReducer extends Reducer<Text, Text, Text, Text> {
         private Text result = new Text();
-        private Boolean status = false;
-        private ArrayList<String> buffer = new ArrayList<String>();
 
         public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+            Boolean status = false;
+            ArrayList<String> buffer = new ArrayList<String>(); // Используем массив для добавления пар за второй месяц на случай, если пар будет больше одной
+
             for (Text val : values) {
                 String[] parts = val.toString().split(SEPARATOR); // Разбиваем входящее значение на количество и идентификатор файла "n\tfile_name" -> "n" "file_name"
                 if (parts[1].equals(TOP_PAIRS_PREV_FILE_NAME)) { // Если имя файла совпадает с первым файлом, где топ 10000 записей
-                    status = true; // Устанавливаем флаг, что пары за первый и вотрой месяц совпадают
+                    status = true; // Устанавливаем флаг, что пары за первый и второй месяц совпадают
                 } else {
                     buffer.add(parts[0]); // Добавляем пары за второй месяц в буфер
                 }
             }
 
             if (buffer.size() > 0 && status == true) { // Если за первый и второй месяц пришла хотя бы одна пара
-                for (Text val : values) { // Итерируемся через записи в буфере и выводим результат
-                    result.set(val);
+                for (String buf : buffer) { // Итерируемся через записи в буфере и выводим результат
+                    result.set(buf);
                     context.write(key, result);
                 }
             }
