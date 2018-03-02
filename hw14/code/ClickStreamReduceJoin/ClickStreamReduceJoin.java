@@ -1,8 +1,11 @@
-package org.myorg;
+package com.larin;
 
 import java.io.IOException;
 import java.util.StringTokenizer;
-
+import java.util.ArrayList;
+import java.net.URI;
+import java.io.BufferedReader;
+import java.io.FileReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -10,94 +13,75 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.hadoop.conf.Configured;
-import java.util.HashSet;
-import java.net.URI;
-import java.io.BufferedReader;
-import java.io.FileReader;
+
 
 public class ClickStreamReduceJoin extends Configured implements Tool {
+    private final static String TOP_PAIRS_PREV_FILE_NAME = "top-pairs-12-2017.tsv.gz";
+    private final static String ALL_PAIRS_CURR_FILE_NAME = "all-pairs-01-2018.tsv.gz";
+    private final static String SEPARATOR = "\t";
 
-    public static class ClickStreamMapper extends Mapper<Object, Text, Text, IntWritable> {
-
-        private IntWritable count = new IntWritable();
+    public static class ClickStreamMapper extends Mapper<Object, Text, Text, Text> {
+        private Text value = new Text();
         private Text tag = new Text();
-        private final static String separator = "\t";
 
-        private HashSet<String> stopWords = new HashSet<String>();
-
-        public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
-            String[] parts = value.toString().split(separator);
-            if(!stopWords.contains(parts[2].trim())) {
-                tag.set(parts[2].trim());
-                count.set(Integer.parseInt(parts[3]));
-                context.write(tag, count);
-            }
-        }
-
-        @Override
-        protected void setup(Context context) throws IOException, InterruptedException {
-            try{
-                URI[] stopWordsFiles = context.getCacheFiles();
-                if(stopWordsFiles != null && stopWordsFiles.length > 0) {
-                    for(URI stopWordFile : stopWordsFiles) {
-                        readFile(new Path(stopWordFile.getPath()));
-                    }
-                }
-            } catch(IOException ex) {
-                System.err.println("Exception in mapper setup: " + ex.getMessage());
-            }
-        }
-
-        private void readFile(Path filePath) {
-            try{
-                BufferedReader bufferedReader = new BufferedReader(new FileReader(filePath.getName().toString()));
-                String stopWord = null;
-                while((stopWord = bufferedReader.readLine()) != null) {
-                    stopWords.add(stopWord.trim().toLowerCase());
-                }
-            } catch(IOException ex) {
-                System.err.println("Exception while reading stop words file: " + ex.getMessage());
-            }
+        public void map(Object key, Text record, Context context) throws IOException, InterruptedException {
+            String[] parts = record.toString().split(SEPARATOR); // Делим строку на токены "prev curr type n" -> "prev" "curr" "type" "n"
+            String fileName = ((FileSplit) context.getInputSplit()).getPath().getName(); // Получаем имя текущего файла
+            tag.set(parts[0].trim() + " " + parts[1].trim()); // Устанавливаем ключ "prev curr"
+            value.set(parts[3].trim() + SEPARATOR + fileName); // Устанавливаем количество кликов с идентификатором файла "n\tfile_name"
+            context.write(tag, value); // Пишем ключ-значение в контекст
         }
     }
 
-    public static class IntSumReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
-        private IntWritable result = new IntWritable();
+    public static class ClickStreamReducer extends Reducer<Text, Text, Text, Text> {
+        private Text result = new Text();
+        private Boolean status = false;
+        private ArrayList<String> buffer = new ArrayList<String>();
 
-        public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
-            int sum = 0;
-            for (IntWritable val : values) {
-                sum += val.get();
+        public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+            for (Text val : values) {
+                String[] parts = val.toString().split(SEPARATOR); // Разбиваем входящее значение на количество и идентификатор файла "n\tfile_name" -> "n" "file_name"
+                if (parts[2] == TOP_PAIRS_PREV_FILE_NAME) { // Если имя файла совпадает с первым файлом, где топ 10000 записей
+                    status = true; // Устанавливаем флаг, что пары за первый и вотрой месяц совпадают
+                } else {
+                    buffer.add(parts[2]); // Добавляем пары за второй месяц в буфер
+                }
             }
-            result.set(sum);
-            context.write(key, result);
+
+            if (buffer.size() > 0 && status == true) { // Если за первый и второй месяц пришла хотя бы одна пара
+                for (Text val : values) { // Итерируемся через записи в буфере и выводим результат
+                    result.set(val);
+                    context.write(key, result);
+                }
+            }
         }
     }
 
     public static void main(String[] args) throws Exception {
-        int res = ToolRunner.run(new ClickStreamExtra(), args);
+        int res = ToolRunner.run(new ClickStreamReduceJoin(), args);
         System.exit(res);
     }
 
     public int run(String[] args) throws Exception {
-        Job job = Job.getInstance(getConf(), ClickStreamExtra.class.getCanonicalName());
+        Job job = Job.getInstance(getConf(), ClickStreamReduceJoin.class.getCanonicalName());
 
-        job.setJarByClass(ClickStreamExtra.class);
-        job.setMapperClass(ClickStreamMapper.class);
-        job.setCombinerClass(IntSumReducer.class);
-        job.setReducerClass(IntSumReducer.class);
+        job.setJarByClass(ClickStreamReduceJoin.class);
+        job.setReducerClass(ClickStreamReducer.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(IntWritable.class);
+        job.setOutputValueClass(Text.class);
 
-        FileInputFormat.addInputPath(job, new Path(args[0]));
-        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+        MultipleInputs.addInputPath(job, new Path(args[0]), TextInputFormat.class, ClickStreamMapper.class);
+        MultipleInputs.addInputPath(job, new Path(args[1]), TextInputFormat.class, ClickStreamMapper.class);
 
-        job.addCacheFile(new Path(args[2]).toUri());
+        FileOutputFormat.setOutputPath(job, new Path(args[2]));
+
         return job.waitForCompletion(true) ? 0 : 1;
     }
 }
