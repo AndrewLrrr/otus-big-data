@@ -3,9 +3,9 @@ package com.larin;
 import java.io.IOException;
 import java.util.StringTokenizer;
 import java.util.ArrayList;
-import java.net.URI;
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.lang.reflect.Method;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -17,6 +17,7 @@ import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.hadoop.conf.Configured;
@@ -30,13 +31,34 @@ public class ClickStreamReduceJoin extends Configured implements Tool {
     public static class ClickStreamMapper extends Mapper<Object, Text, Text, Text> {
         private Text value = new Text();
         private Text tag = new Text();
+        private String fileName;
 
         public void map(Object key, Text record, Context context) throws IOException, InterruptedException {
             String[] parts = record.toString().split(SEPARATOR); // Делим строку на токены "prev curr type n" -> "prev" "curr" "type" "n"
-            String fileName = ((FileSplit) context.getInputSplit()).getPath().getName(); // Получаем имя текущего файла
             tag.set(parts[0].trim() + " " + parts[1].trim()); // Устанавливаем ключ "prev curr"
             value.set(parts[3].trim() + SEPARATOR + fileName); // Устанавливаем количество кликов с идентификатором файла "n\tfile_name"
             context.write(tag, value); // Пишем ключ-значение в контекст
+        }
+
+        @Override
+        protected void setup(Context context) throws IOException, InterruptedException {
+            // Вся эта магия по извлечению имени файла взята отсюда:
+            // https://stackoverflow.com/questions/11130145/hadoop-multipleinputs-fails-with-classcastexception
+            InputSplit split = context.getInputSplit();
+            Class<? extends InputSplit> splitClass = split.getClass();
+            FileSplit fileSplit = null;
+            if (splitClass.equals(FileSplit.class)) {
+                fileSplit = (FileSplit) split;
+            } else if (splitClass.getName().equals("org.apache.hadoop.mapreduce.lib.input.TaggedInputSplit")) {
+                try {
+                    Method getInputSplitMethod = splitClass.getDeclaredMethod("getInputSplit");
+                    getInputSplitMethod.setAccessible(true);
+                    fileSplit = (FileSplit) getInputSplitMethod.invoke(split);
+                } catch (Exception e) {
+                    throw new IOException(e);
+                }
+            }
+            fileName = fileSplit.getPath().getName();
         }
     }
 
@@ -48,10 +70,10 @@ public class ClickStreamReduceJoin extends Configured implements Tool {
         public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
             for (Text val : values) {
                 String[] parts = val.toString().split(SEPARATOR); // Разбиваем входящее значение на количество и идентификатор файла "n\tfile_name" -> "n" "file_name"
-                if (parts[2] == TOP_PAIRS_PREV_FILE_NAME) { // Если имя файла совпадает с первым файлом, где топ 10000 записей
+                if (parts[1].equals(TOP_PAIRS_PREV_FILE_NAME)) { // Если имя файла совпадает с первым файлом, где топ 10000 записей
                     status = true; // Устанавливаем флаг, что пары за первый и вотрой месяц совпадают
                 } else {
-                    buffer.add(parts[2]); // Добавляем пары за второй месяц в буфер
+                    buffer.add(parts[0]); // Добавляем пары за второй месяц в буфер
                 }
             }
 
