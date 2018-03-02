@@ -29,15 +29,15 @@ public class ClickStreamReduceJoin extends Configured implements Tool {
     private final static String SEPARATOR = "\t";
 
     public static class ClickStreamMapper extends Mapper<Object, Text, Text, Text> {
-        private Text value = new Text();
-        private Text tag = new Text();
-        private String fileName;
+        private Text outKey = new Text();
+        private Text outValue = new Text();
+        private String fileName = null;
 
         public void map(Object key, Text record, Context context) throws IOException, InterruptedException {
             String[] parts = record.toString().split(SEPARATOR); // Делим строку на токены "prev curr type n" -> "prev" "curr" "type" "n"
-            tag.set(parts[0].trim() + " " + parts[1].trim()); // Устанавливаем ключ "prev curr"
-            value.set(parts[3].trim() + SEPARATOR + fileName); // Устанавливаем количество кликов с идентификатором файла "n\tfile_name"
-            context.write(tag, value); // Пишем ключ-значение в контекст
+            outKey.set(parts[0].trim() + " " + parts[1].trim()); // Устанавливаем ключ "prev curr"
+            outValue.set(parts[3].trim() + SEPARATOR + fileName); // Устанавливаем количество кликов с идентификатором файла "n\tfile_name"
+            context.write(outKey, outValue); // Пишем ключ-значение в контекст
         }
 
         @Override
